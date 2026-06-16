@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+.workbuddy/
+output/
+result.json
+*.egg-info/
+dist/
+build/
+analysis/*.png
+analysis/*.md

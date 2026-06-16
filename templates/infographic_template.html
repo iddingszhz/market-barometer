@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股收盘晴雨表 {{DATE_CN}}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #e0e0e0;
+  }
+  .container { max-width: 780px; margin: 0 auto; }
+
+  /* ---------- 头部卡片 ---------- */
+  .header-card {
+    background: rgba(255,255,255,0.07);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left .title { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .header-left .subtitle { font-size: 13px; color: #94a3b8; }
+  .grade-badge {
+    text-align: center;
+    background: rgba(251, 191, 36, 0.15);
+    border: 2px solid rgba(251, 191, 36, 0.4);
+    border-radius: 16px;
+    padding: 12px 20px;
+  }
+  .grade-icon { font-size: 42px; line-height: 1; margin-bottom: 4px; }
+  .grade-text { font-size: 18px; font-weight: 800; color: #fbbf24; }
+  .grade-score { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+
+  /* ---------- 总分环 + 建议 ---------- */
+  .score-ring-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .ring-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .ring-center .big-num { font-size: 28px; font-weight: 800; color: #fbbf24; }
+  .ring-center .big-label { font-size: 10px; color: #94a3b8; }
+  .advice-block h3 { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .advice-block p { font-size: 13px; color: #cbd5e1; line-height: 1.7; }
+  .advice-tag {
+    display: inline-block;
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    color: #fbbf24;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+
+  /* ---------- 六维评分条 ---------- */
+  .dims-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title::before { content: ''; display: block; width: 4px; height: 16px; background: #fbbf24; border-radius: 2px; }
+
+  .dim-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .dim-row:last-child { border-bottom: none; }
+  .dim-code { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .dim-name { width: 80px; font-size: 13px; color: #cbd5e1; flex-shrink: 0; }
+  .dim-bar-wrap { flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+  .dim-bar { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+  .dim-score { width: 38px; text-align: right; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .dim-data { font-size: 11px; color: #64748b; }
+
+  /* ---------- 颜色方案（六维固定） ---------- */
+  .c-d1 { background: rgba(99,102,241,0.2); color: #818cf8; }
+  .b-d1 { background: linear-gradient(90deg, #6366f1, #818cf8); }
+  .c-d2 { background: rgba(20,184,166,0.2); color: #2dd4bf; }
+  .b-d2 { background: linear-gradient(90deg, #14b8a6, #2dd4bf); }
+  .c-d3 { background: rgba(245,158,11,0.2); color: #fbbf24; }
+  .b-d3 { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .c-d4 { background: rgba(239,68,68,0.2); color: #f87171; }
+  .b-d4 { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .c-d5 { background: rgba(168,85,247,0.2); color: #c084fc; }
+  .b-d5 { background: linear-gradient(90deg, #a855f7, #c084fc); }
+  .c-d6 { background: rgba(34,197,94,0.2); color: #4ade80; }
+  .b-d6 { background: linear-gradient(90deg, #22c55e, #4ade80); }
+
+  /* ---------- 双列数据卡 ---------- */
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .data-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 18px;
+  }
+  .data-card .dc-title { font-size: 12px; color: #64748b; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .data-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .data-item:last-child { border-bottom: none; }
+  .data-item .label { font-size: 12px; color: #94a3b8; }
+  .data-item .value { font-size: 13px; font-weight: 600; }
+  .up { color: #ef4444; }
+  .down { color: #22c55e; }
+  .neutral { color: #94a3b8; }
+  .positive { color: #fbbf24; }
+
+  /* ---------- 市场要点 ---------- */
+  .points-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .point-item {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+    color: #cbd5e1;
+    line-height: 1.6;
+  }
+  .point-item:last-child { border-bottom: none; }
+  .point-dot { width: 6px; height: 6px; background: #fbbf24; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+
+  /* ---------- 雷达图 ---------- */
+  .radar-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .radar-svg { max-width: 280px; margin: 0 auto; display: block; }
+
+  /* ---------- 加权汇总表 ---------- */
+  .summary-table { width:100%; font-size:13px; border-collapse:collapse; }
+  .summary-table thead tr { color:#64748b; border-bottom:1px solid rgba(255,255,255,0.08); }
+  .summary-table thead th { padding:8px 0; text-align:left; }
+  .summary-table thead th:not(:first-child) { text-align:right; padding:8px; }
+  .summary-table tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); }
+  .summary-table tbody td { padding:8px 0; }
+  .summary-table tbody td:not(:first-child) { text-align:right; color:#e2e8f0; }
+  .summary-table .weight-col { color:#94a3b8; }
+  .summary-table .weighted-col { color:#fbbf24; }
+  .summary-table .total-row { background:rgba(251,191,36,0.08); border-radius:8px; }
+  .summary-table .total-row td { padding:10px 0; font-weight:700; color:#fff; }
+  .summary-table .total-row .total-value { font-size:18px; font-weight:800; color:#fbbf24; }
+
+  /* ---------- 页脚 ---------- */
+  .footer { text-align: center; font-size: 11px; color: #475569; padding: 12px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ==================== 头部 ==================== -->
+  <div class="header-card">
+    <div class="header-left">
+      <div class="title">A股收盘晴雨表</div>
+      <div class="subtitle">{{DATE_CN}}（{{WEEKDAY}}）收盘</div>
+      <div class="subtitle" style="margin-top:4px;color:#64748b;">数据源：国泰海通 lingxi + WebSearch</div>
+    </div>
+    <div class="grade-badge">
+      <div class="grade-icon">{{GRADE_ICON}}</div>
+      <div class="grade-text">{{GRADE_TEXT}}</div>
+      <div class="grade-score">综合得分 {{TOTAL_SCORE}}</div>
+    </div>
+  </div>
+
+  <!-- ==================== 总分环 + 建议 ==================== -->
+  <div class="score-ring-card">
+    <div class="ring-wrap">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#fbbf24" stroke-width="10"
+          stroke-dasharray="314.16" stroke-dashoffset="{{RING_OFFSET}}"
+          stroke-linecap="round"/>
+      </svg>
+      <div class="ring-center">
+        <div class="big-num">{{TOTAL_SCORE}}</div>
+        <div class="big-label">综合得分</div>
+      </div>
+    </div>
+    <div class="advice-block">
+      <div class="advice-tag">{{GRADE_ICON}} {{GRADE_TEXT}}</div>
+      <h3>{{ADVICE_TITLE}}</h3>
+      <p>{{ADVICE_DETAIL}}</p>
+    </div>
+  </div>
+
+  <!-- ==================== 六维评分条 ==================== -->
+  <div class="dims-card">
+    <div class="card-title">六维评分详情</div>
+
+    <!-- D1 -->
+    <div class="dim-row">
+      <div class="dim-code c-d1">D1</div>
+      <div class="dim-name">指数趋势</div>
+      <div class="dim-bar-wrap"><div class="dim-bar b-d1" style="width:{{D1_BAR}}%"></div></div>
+      <div class="dim-score" style="color:#818cf8">{{D1_SCORE}}</div>
+    </div>
+    <div class="dim-data" style="padding:4px 0 8px 40px;font-size:11px;color:#64748b;">{{D1_DETAIL}}</div>
+
+    <!-- D2 -->
+    <div class="dim-row">
+      <div class="dim-code c-d2">D2</div>
+      <div class="dim-name">成交量</div>
+      <div class="dim-bar-wrap"><div class="dim-bar b-d2" style="width:{{D2_BAR}}%"></div></div>
+      <div class="dim-score" style="color:#2dd4bf">{{D2_SCORE}}</div>
+    </div>
+    <div class="dim-data" style="padding:4px 0 8px 40px;font-size:11px;color:#64748b;">{{D2_DETAIL}}</div>
+
+    <!-- D3 -->
+    <div class="dim-row">
+      <div class="dim-code c-d3">D3</div>
+      <div class="dim-name">涨跌停</div>
+      <div class="dim-bar-wrap"><div class="dim-bar b-d3" style="width:{{D3_BAR}}%"></div></div>
+      <div class="dim-score" style="color:#fbbf24">{{D3_SCORE}}</div>
+    </div>
+    <div class="dim-data" style="padding:4px 0 8px 40px;font-size:11px;color:#64748b;">{{D3_DETAIL}}</div>
+
+    <!-- D4 -->
+    <div class="dim-row">
+      <div class="dim-code c-d4">D4</div>
+      <div class="dim-name">资金流向</div>
+      <div class="dim-bar-wrap"><div class="dim-bar b-d4" style="width:{{D4_BAR}}%"></div></div>
+      <div class="dim-score" style="color:#f87171">{{D4_SCORE}}</div>
+    </div>
+    <div class="dim-data" style="padding:4px 0 8px 40px;font-size:11px;color:#64748b;">{{D4_DETAIL}}</div>
+
+    <!-- D5 -->
+    <div class="dim-row">
+      <div class="dim-code c-d5">D5</div>
+      <div class="dim-name">市场情绪</div>
+      <div class="dim-bar-wrap"><div class="dim-bar b-d5" style="width:{{D5_BAR}}%"></div></div>
+      <div class="dim-score" style="color:#c084fc">{{D5_SCORE}}</div>
+    </div>
+    <div class="dim-data" style="padding:4px 0 8px 40px;font-size:11px;color:#64748b;">{{D5_DETAIL}}</div>
+
+    <!-- D6 -->
+    <div class="dim-row">
+      <div class="dim-code c-d6">D6</div>
+      <div class="dim-name">天气</div>
+      <div class="dim-bar-wrap"><div class="dim-bar b-d6" style="width:{{D6_BAR}}%"></div></div>
+      <div class="dim-score" style="color:#4ade80">{{D6_SCORE}}</div>
+    </div>
+    <div class="dim-data" style="padding:4px 0 4px 40px;font-size:11px;color:#64748b;">{{D6_DETAIL}}</div>
+
+  </div>
+
+  <!-- ==================== 雷达图 ==================== -->
+  <div class="radar-card">
+    <div class="card-title" style="justify-content:center;">六维雷达图</div>
+    <svg class="radar-svg" viewBox="0 0 280 260" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="radarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.5"/>
+          <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0.3"/>
+        </linearGradient>
+      </defs>
+      <!-- 背景网格 -->
+      <g transform="translate(140,130)">
+        <!-- 20% -->
+        <polygon points="0,-20 17.32,-10 17.32,10 0,20 -17.32,10 -17.32,-10" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <!-- 40% -->
+        <polygon points="0,-40 34.64,-20 34.64,20 0,40 -34.64,20 -34.64,-20" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <!-- 60% -->
+        <polygon points="0,-60 51.96,-30 51.96,30 0,60 -51.96,30 -51.96,-30" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <!-- 80% -->
+        <polygon points="0,-80 69.28,-40 69.28,40 0,80 -69.28,40 -69.28,-40" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <!-- 100% -->
+        <polygon points="0,-100 86.60,-50 86.60,50 0,100 -86.60,50 -86.60,-50" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+        <!-- 轴线 -->
+        <line x1="0" y1="0" x2="0" y2="-100" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <line x1="0" y1="0" x2="86.60" y2="-50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <line x1="0" y1="0" x2="86.60" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <line x1="0" y1="0" x2="0" y2="100" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <line x1="0" y1="0" x2="-86.60" y2="50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <line x1="0" y1="0" x2="-86.60" y2="-50" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+        <!-- 数据多边形 -->
+        <polygon
+          points="{{RADAR_POLYGON}}"
+          fill="url(#radarGrad)"
+          stroke="#fbbf24"
+          stroke-width="2"
+          stroke-linejoin="round"
+          opacity="0.9"
+        />
+
+        <!-- 数据点 -->
+        <circle cx="{{RADAR_D1_X}}" cy="{{RADAR_D1_Y}}" r="4" fill="#818cf8"/>
+        <circle cx="{{RADAR_D2_X}}" cy="{{RADAR_D2_Y}}" r="4" fill="#2dd4bf"/>
+        <circle cx="{{RADAR_D3_X}}" cy="{{RADAR_D3_Y}}" r="4" fill="#fbbf24"/>
+        <circle cx="{{RADAR_D4_X}}" cy="{{RADAR_D4_Y}}" r="4" fill="#f87171"/>
+        <circle cx="{{RADAR_D5_X}}" cy="{{RADAR_D5_Y}}" r="4" fill="#c084fc"/>
+        <circle cx="{{RADAR_D6_X}}" cy="{{RADAR_D6_Y}}" r="4" fill="#4ade80"/>
+
+        <!-- 标签 -->
+        <text x="0" y="-112" text-anchor="middle" fill="#818cf8" font-size="11">D1指数趋势 {{D1_SCORE_RAW}}</text>
+        <text x="100" y="-42" text-anchor="start" fill="#2dd4bf" font-size="11">D2成交量 {{D2_SCORE_RAW}}</text>
+        <text x="100" y="48" text-anchor="start" fill="#fbbf24" font-size="11">D3涨跌停 {{D3_SCORE_RAW}}</text>
+        <text x="0" y="120" text-anchor="middle" fill="#f87171" font-size="11">D4资金 {{D4_SCORE_RAW}}</text>
+        <text x="-100" y="48" text-anchor="end" fill="#c084fc" font-size="11">D5情绪 {{D5_SCORE_RAW}}</text>
+        <text x="-100" y="-42" text-anchor="end" fill="#4ade80" font-size="11">D6天气 {{D6_SCORE_RAW}}</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- ==================== 四列数据卡 ==================== -->
+  <div class="data-grid">
+    <!-- 指数行情 -->
+    <div class="data-card">
+      <div class="dc-title">📈 指数行情</div>
+      {{INDEX_ROWS}}
+    </div>
+    <!-- 资金流向 -->
+    <div class="data-card">
+      <div class="dc-title">💰 资金流向</div>
+      {{CAPITAL_ROWS}}
+    </div>
+    <!-- 成交量 -->
+    <div class="data-card">
+      <div class="dc-title">📊 成交量</div>
+      {{VOLUME_ROWS}}
+    </div>
+    <!-- 天气 -->
+    <div class="data-card">
+      <div class="dc-title">☁️ 天气</div>
+      {{WEATHER_ROWS}}
+    </div>
+  </div>
+
+  <!-- ==================== 市场要点 ==================== -->
+  <div class="points-card">
+    <div class="card-title">今日市场要点</div>
+    {{MARKET_POINTS}}
+  </div>
+
+  <!-- ==================== 加权计算明细 ==================== -->
+  <div class="dims-card" style="margin-bottom:20px;">
+    <div class="card-title">加权计算明细</div>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th>得分</th>
+          <th>权重</th>
+          <th>加权分</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{WEIGHTED_ROWS}}
+        <tr class="total-row">
+          <td>综合得分</td>
+          <td></td>
+          <td class="weight-col">100%</td>
+          <td class="total-value">{{TOTAL_SCORE}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== 页脚 ==================== -->
+  <div class="footer">
+    A股收盘晴雨表 Skill v1.0 &nbsp;|&nbsp; {{DATETIME}} &nbsp;|&nbsp; 数据仅供参考，不构成投资建议
+  </div>
+
+</div>
+</body>
+</html>
