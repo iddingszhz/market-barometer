@@ -257,8 +257,8 @@ result = scorer.calculate(market_data)
 ## 四、报告生成 (reporter.py)
 
 ### 输出文件
-1. **Markdown 报告**：`/Users/mac/WorkBuddy/market-barometer/YYYY-MM-DD_晴雨表.md`
-2. **HTML 信息图**：`/Users/mac/WorkBuddy/market-barometer/YYYY-MM-DD_晴雨表.html`
+1. **Markdown 报告**：`output/YYYY-MM-DD_晴雨表.md`
+2. **HTML 信息图**：`output/YYYY-MM-DD_晴雨表.html`
 
 ### Markdown 报告结构
 ```markdown
